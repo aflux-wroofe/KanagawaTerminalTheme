@@ -70,7 +70,8 @@ function global:Get-KanagawaGitSegment {
     $g = $kp.Glyph
     $ink = $kp.Ink
 
-    $status = git status --porcelain=v2 --branch 2>$null
+    # --no-optional-locks: don't refresh the index, which can clash with editors running git at the same time
+    $status = git --no-optional-locks status --porcelain=v2 --branch 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $status) { return '' }
 
     $oid = $branch = $null
