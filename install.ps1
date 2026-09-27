@@ -20,6 +20,8 @@
 .EXAMPLE
     ./install.ps1 -OhMyPosh            # use the Oh My Posh theme for the prompt
 .EXAMPLE
+    ./install.ps1 -Uninstall           # remove everything this installed
+.EXAMPLE
     ./install.ps1 -WhatIf              # show what would change
 .EXAMPLE
     ./install.ps1 -Verbose             # also show file paths and backups
@@ -43,7 +45,10 @@ param(
     [string[]]$ProfilePath,
 
     # Use the Oh My Posh theme for the prompt instead of the built-in PowerShell prompt
-    [switch]$OhMyPosh
+    [switch]$OhMyPosh,
+
+    # Remove the schemes, the profile hook and the installed prompt files
+    [switch]$Uninstall
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,6 +80,15 @@ function Backup-File([string]$Path) {
         Copy-Item $Path $backup
         $backups.Add($backup)
         Write-Verbose "Backed up $Path to $backup"
+    }
+}
+
+function Save-TerminalSettings([string]$Path, $Settings, [string]$Before) {
+    # Comments in settings.json don't survive the rewrite; the backup keeps them
+    $after = $Settings | ConvertTo-Json -Depth 32
+    if ($after -ne $Before -and $PSCmdlet.ShouldProcess($Path, 'Update Windows Terminal settings')) {
+        Backup-File $Path
+        [IO.File]::WriteAllText($Path, $after, $utf8)
     }
 }
 
@@ -113,6 +127,22 @@ foreach ($settingsFile in $TerminalSettingsPath) {
     $settings = Get-Content $settingsFile -Raw | ConvertFrom-Json  # PowerShell 7 accepts the comments WT allows
     $before = $settings | ConvertTo-Json -Depth 32
     $notes = @()
+
+    if ($Uninstall) {
+        $removed = @($settings.schemes | Where-Object { $_.name -in $schemeNames }).name
+        $settings | Add-Member -NotePropertyName schemes -NotePropertyValue @($settings.schemes | Where-Object { $_ -and $_.name -notin $schemeNames }) -Force
+        if ($removed) { Write-Result 'Schemes removed' (($removed -replace '^(Kanagawa|Kanso) ') -join ', ') }
+        else { Write-Result 'Schemes' 'not installed' same }
+
+        # Profiles pointing at a removed scheme fall back to Windows Terminal's default
+        $profileList = $settings.profiles -is [array] ? $settings.profiles : @($settings.profiles.defaults) + @($settings.profiles.list)
+        $reset = @($profileList | Where-Object { $_ -and $_.colorScheme -in $schemeNames })
+        foreach ($target in $reset) { $target.PSObject.Properties.Remove('colorScheme') }
+        if ($reset) { Write-Result 'Colour scheme' "reset on $($reset.Count) profile(s)" }
+
+        Save-TerminalSettings $settingsFile $settings $before
+        continue
+    }
 
     # Replace earlier copies of our schemes where they sit, append new ones
     $list = [Collections.Generic.List[object]]@($settings.schemes | Where-Object { $_ })
@@ -167,12 +197,7 @@ foreach ($settingsFile in $TerminalSettingsPath) {
 
     foreach ($note in $notes) { Write-Result $note[0] $note[1] note }
 
-    # Comments in settings.json don't survive the rewrite; the backup keeps them
-    $after = $settings | ConvertTo-Json -Depth 32
-    if ($after -ne $before -and $PSCmdlet.ShouldProcess($settingsFile, 'Update Windows Terminal settings')) {
-        Backup-File $settingsFile
-        [IO.File]::WriteAllText($settingsFile, $after, $utf8)
-    }
+    Save-TerminalSettings $settingsFile $settings $before
 }
 
 # ---------------------------------------------------------------- PowerShell profiles
@@ -196,18 +221,27 @@ $installFiles = @(
 
 Write-Section 'Prompt'
 Write-Verbose "Install folder: $installDir"
-$promptName = $OhMyPosh ? 'Oh My Posh theme' : 'PowerShell prompt'
 $installDirShort = $installDir.Replace($HOME, '~')
-$changedFiles = @($installFiles | Where-Object {
-    $dest = Join-Path $installDir (Split-Path $_ -Leaf)
-    -not (Test-Path $dest) -or (Get-FileHash $_).Hash -ne (Get-FileHash $dest).Hash
-})
-if (-not $changedFiles) {
-    Write-Result $promptName "$installDirShort, already up to date" same
-} elseif ($PSCmdlet.ShouldProcess($installDir, 'Copy prompt files')) {
-    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
-    Copy-Item $changedFiles $installDir -Force
-    Write-Result $promptName "installed to $installDirShort"
+if ($Uninstall) {
+    if (-not (Test-Path $installDir)) {
+        Write-Result 'Prompt files' 'not installed' same
+    } elseif ($PSCmdlet.ShouldProcess($installDir, 'Remove prompt files')) {
+        Remove-Item $installDir -Recurse -Force
+        Write-Result 'Prompt files' "removed from $installDirShort"
+    }
+} else {
+    $promptName = $OhMyPosh ? 'Oh My Posh theme' : 'PowerShell prompt'
+    $changedFiles = @($installFiles | Where-Object {
+        $dest = Join-Path $installDir (Split-Path $_ -Leaf)
+        -not (Test-Path $dest) -or (Get-FileHash $_).Hash -ne (Get-FileHash $dest).Hash
+    })
+    if (-not $changedFiles) {
+        Write-Result $promptName "$installDirShort, already up to date" same
+    } elseif ($PSCmdlet.ShouldProcess($installDir, 'Copy prompt files')) {
+        New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+        Copy-Item $changedFiles $installDir -Force
+        Write-Result $promptName "installed to $installDirShort"
+    }
 }
 
 $begin = '# >>> KanagawaTerminalTheme >>>'
@@ -224,7 +258,7 @@ $block = @(
     $end
 ) -join [Environment]::NewLine
 
-if ($OhMyPosh -and -not (Get-Command oh-my-posh -ErrorAction Ignore)) {
+if ($OhMyPosh -and -not $Uninstall -and -not (Get-Command oh-my-posh -ErrorAction Ignore)) {
     Write-Result 'Oh My Posh' 'not found, install it: winget install JanDeDobbeleer.OhMyPosh' note
 }
 
@@ -235,7 +269,11 @@ foreach ($target in $ProfilePath) {
     $existing = if (Test-Path $target) { Get-Content $target -Raw } else { '' }
     $pattern = "(?s)$([regex]::Escape($begin)).*?$([regex]::Escape($end))"
 
-    if ($existing -match $pattern) {
+    if ($Uninstall) {
+        # Take the block's own line break and the blank line added before it
+        $updated = [regex]::Replace($existing, "(?:(?<=\n)\r?\n)?$pattern\r?\n?", '')
+        $action = 'hook removed'
+    } elseif ($existing -match $pattern) {
         $updated = [regex]::Replace($existing, $pattern, $block.Replace('$', '$$'))
         $action = 'hook updated'
     } else {
@@ -245,8 +283,8 @@ foreach ($target in $ProfilePath) {
     }
 
     if ($updated -eq $existing) {
-        Write-Result $label 'already hooked in' same
-    } elseif ($PSCmdlet.ShouldProcess($target, 'Add Kanagawa to PowerShell profile')) {
+        Write-Result $label ($Uninstall ? 'not hooked in' : 'already hooked in') same
+    } elseif ($PSCmdlet.ShouldProcess($target, $Uninstall ? 'Remove Kanagawa from PowerShell profile' : 'Add Kanagawa to PowerShell profile')) {
         Backup-File $target
         New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
         # UTF-8 with BOM so Windows PowerShell 5.1 reads any non-ASCII already in the profile correctly
@@ -256,7 +294,7 @@ foreach ($target in $ProfilePath) {
 }
 
 $policy = Get-ExecutionPolicy
-if ($policy -in 'Restricted', 'AllSigned') {
+if (-not $Uninstall -and $policy -in 'Restricted', 'AllSigned') {
     Write-Result 'Execution policy' "'$policy' stops profiles from running (see about_Execution_Policies)" note
 }
 
@@ -269,7 +307,7 @@ $nerdFonts = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts', 'HKCU:\
     ForEach-Object { $Matches[1] } |  # family name without weight/style
     Sort-Object -Unique
 
-if (-not $FontFace) {
+if (-not $FontFace -and -not $Uninstall) {
     Write-Section 'Font'
     if (-not $nerdFonts) {
         Write-Result 'No Nerd Font' 'the prompt needs one: nerdfonts.com/font-downloads' note
@@ -299,6 +337,7 @@ if ($backups.Count) {
     Write-Host "  Backups saved beside each file as *.kanagawa-backup-$stamp" -ForegroundColor DarkGray
 }
 if (-not $WhatIfPreference) {
-    Write-Host "  $check Done. Open a new tab to see it." -ForegroundColor Green
+    $doneMessage = $Uninstall ? 'Removed. Open a new tab to go back to your old prompt.' : 'Done. Open a new tab to see it.'
+    Write-Host "  $check $doneMessage" -ForegroundColor Green
 }
 Write-Host ''

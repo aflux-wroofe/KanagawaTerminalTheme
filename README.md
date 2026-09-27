@@ -44,6 +44,7 @@ Options:
 ./install.ps1 -FontFace 'CaskaydiaCove Nerd Font'    # set the font for all profiles
 ./install.ps1 -SkipDefaultScheme                     # add the schemes without applying them
 ./install.ps1 -OhMyPosh                              # use the Oh My Posh theme for the prompt
+./install.ps1 -Uninstall                             # remove the schemes, profile hook and prompt files
 ./install.ps1 -WhatIf                                # preview changes
 ```
 
