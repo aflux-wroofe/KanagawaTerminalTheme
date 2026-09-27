@@ -54,7 +54,7 @@ The installer is safe to re-run: schemes are replaced by name, the profile hook 
 1. Open Windows Terminal settings → **Open JSON file**.
 2. Paste the contents of any of the `windows-terminal/*.json` files into the `schemes` array.
 3. Set `"colorScheme": "Kanagawa Dragon"` (or `"Kanagawa Wave"`, `"Kanagawa Lotus"`, `"Kanso Zen"`, `"Kanso Ink"`, `"Kanso Mist"`, `"Kanso Pearl"`) on a profile or under `profiles.defaults`.
-4. Optionally add `. "C:\path\to\KanagawaTerminalTheme\powershell\profile.ps1"` to your `$PROFILE`.
+4. Optionally add `. "C:\path\to\KanagawaTerminalTheme\powershell\profile.ps1"` to your `$PROFILE`. This loads the prompt straight from the repo, so update the path if you move it (the installer copies the files elsewhere to avoid this).
 
 ### Oh My Posh
 
