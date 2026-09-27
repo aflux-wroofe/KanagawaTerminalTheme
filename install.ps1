@@ -96,6 +96,11 @@ function Save-TerminalSettings([string]$Path, $Settings, [string]$Before, [bool]
     }
 }
 
+# colorScheme is a name, or { "light": name, "dark": name } in newer Windows Terminal
+function Get-SchemeNames($ColorScheme) {
+    if ($ColorScheme -is [string]) { $ColorScheme } else { $ColorScheme.light, $ColorScheme.dark | Where-Object { $_ } }
+}
+
 $check = [char]0x2713
 $family = if ($Variant -in 'Zen', 'Ink', 'Mist', 'Pearl') { 'Kanso' } else { 'Kanagawa' }
 Write-Host "`n  Kanagawa & Kansō Terminal Themes" -ForegroundColor Cyan
@@ -142,7 +147,7 @@ foreach ($settingsFile in $TerminalSettingsPath) {
 
         # Profiles pointing at a removed scheme fall back to Windows Terminal's default
         $profileList = $settings.profiles -is [array] ? $settings.profiles : @($settings.profiles.defaults) + @($settings.profiles.list)
-        $reset = @($profileList | Where-Object { $_ -and $_.colorScheme -in $schemeNames })
+        $reset = @($profileList | Where-Object { $_ -and @(Get-SchemeNames $_.colorScheme).Where({ $_ -in $schemeNames }) })
         foreach ($target in $reset) { $target.PSObject.Properties.Remove('colorScheme') }
         if ($reset) { Write-Result 'Colour scheme' "reset on $($reset.Count) profile(s)" }
 
@@ -181,8 +186,8 @@ foreach ($settingsFile in $TerminalSettingsPath) {
             $defaults | Add-Member -NotePropertyName colorScheme -NotePropertyValue $defaultScheme -Force
 
             # A scheme set on a single profile beats the default, so point it out rather than override it
-            $settings.profiles.list | Where-Object { $_.colorScheme -and $_.colorScheme -notin $schemeNames } | ForEach-Object {
-                $notes += , @($_.name, "keeps its own scheme ($($_.colorScheme))")
+            $settings.profiles.list | Where-Object { @(Get-SchemeNames $_.colorScheme).Where({ $_ -notin $schemeNames }) } | ForEach-Object {
+                $notes += , @($_.name, "keeps its own scheme ($((Get-SchemeNames $_.colorScheme) -join ' / '))")
             }
         }
 
