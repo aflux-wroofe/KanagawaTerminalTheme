@@ -80,7 +80,7 @@ function Backup-File([string]$Path) {
 
 $check = [char]0x2713
 $family = if ($Variant -in 'Zen', 'Ink', 'Mist', 'Pearl') { 'Kanso' } else { 'Kanagawa' }
-Write-Host "`n  $family $([char]0x00B7) $Variant" -ForegroundColor Cyan
+Write-Host "`n  Kanagawa & Kansō Terminal Themes" -ForegroundColor Cyan
 if ($WhatIfPreference) { Write-Host '  dry run: nothing will be written' -ForegroundColor DarkGray }
 
 # ---------------------------------------------------------------- Windows Terminal
@@ -142,12 +142,7 @@ foreach ($settingsFile in $TerminalSettingsPath) {
         $defaults = $settings.profiles.defaults
 
         if (-not $SkipDefaultScheme) {
-            if ($defaults.colorScheme -eq $defaultScheme) {
-                Write-Result 'Default scheme' "$defaultScheme, already set" same
-            } else {
-                $defaults | Add-Member -NotePropertyName colorScheme -NotePropertyValue $defaultScheme -Force
-                Write-Result 'Default scheme' $defaultScheme
-            }
+            $defaults | Add-Member -NotePropertyName colorScheme -NotePropertyValue $defaultScheme -Force
 
             # A scheme set on a single profile beats the default, so point it out rather than override it
             $settings.profiles.list | Where-Object { $_.colorScheme -and $_.colorScheme -notin $schemeNames } | ForEach-Object {
