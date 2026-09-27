@@ -214,4 +214,15 @@ if (Get-Module PSReadLine) {
     # Prediction colours need PSReadLine 2.1+ (bundled with PowerShell 7)
     try { Set-PSReadLineOption -Colors @{ InlinePrediction = "$([char]27)[3;90m" } } catch { }
     Remove-Variable ink
+
+    # Windows Terminal shell integration: mark where each command's output starts, so
+    # "select command output" works. Leaves Enter alone if something else has rebound it.
+    $enter = Get-PSReadLineKeyHandler -Bound | Where-Object Key -eq 'Enter'
+    if ($env:WT_SESSION -and $enter.Function -eq 'AcceptLine') {
+        Set-PSReadLineKeyHandler -Key Enter -BriefDescription 'KanagawaAcceptLine' -ScriptBlock {
+            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+            [Console]::Write("$([char]27)]133;C$([char]7)")
+        }
+    }
+    Remove-Variable enter
 }
