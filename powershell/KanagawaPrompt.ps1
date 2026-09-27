@@ -8,7 +8,7 @@
 #   [!] conflicts (red)  [up] / [down] commits ahead of / behind upstream (blue)
 #
 # Colours come from the terminal's 16-colour palette, so the prompt follows
-# whichever variant (Dragon, Wave or Lotus) the terminal is using. Glyphs are built from
+# whichever Kanagawa or Kanso variant the terminal is using. Glyphs are built from
 # code points (not literals) so they render the same in PowerShell 5.1, which
 # reads BOM-less files as ANSI, and PowerShell 7.
 
