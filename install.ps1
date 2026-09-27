@@ -83,10 +83,14 @@ function Backup-File([string]$Path) {
     }
 }
 
-function Save-TerminalSettings([string]$Path, $Settings, [string]$Before) {
-    # Comments in settings.json don't survive the rewrite; the backup keeps them
+function Save-TerminalSettings([string]$Path, $Settings, [string]$Before, [bool]$HasComments) {
     $after = $Settings | ConvertTo-Json -Depth 32
-    if ($after -ne $Before -and $PSCmdlet.ShouldProcess($Path, 'Update Windows Terminal settings')) {
+    if ($after -eq $Before) { return }
+    if ($HasComments) {
+        # ConvertTo-Json can't write them back
+        Write-Result 'Comments' 'removed by the rewrite, the backup keeps them' note
+    }
+    if ($PSCmdlet.ShouldProcess($Path, 'Update Windows Terminal settings')) {
         Backup-File $Path
         [IO.File]::WriteAllText($Path, $after, $utf8)
     }
@@ -124,7 +128,9 @@ if (-not $TerminalSettingsPath) {
 foreach ($settingsFile in $TerminalSettingsPath) {
     Write-Section ($terminalNames[$settingsFile] ?? $settingsFile)
     Write-Verbose "Settings file: $settingsFile"
-    $settings = Get-Content $settingsFile -Raw | ConvertFrom-Json  # PowerShell 7 accepts the comments WT allows
+    $raw = Get-Content $settingsFile -Raw
+    $settings = $raw | ConvertFrom-Json  # PowerShell 7 accepts the comments WT allows
+    $hasComments = ($raw -replace '"(?:\\.|[^"\\])*"') -match '//|/\*'  # ignoring strings, so URLs don't count
     $before = $settings | ConvertTo-Json -Depth 32
     $notes = @()
 
@@ -140,7 +146,7 @@ foreach ($settingsFile in $TerminalSettingsPath) {
         foreach ($target in $reset) { $target.PSObject.Properties.Remove('colorScheme') }
         if ($reset) { Write-Result 'Colour scheme' "reset on $($reset.Count) profile(s)" }
 
-        Save-TerminalSettings $settingsFile $settings $before
+        Save-TerminalSettings $settingsFile $settings $before $hasComments
         continue
     }
 
@@ -197,7 +203,7 @@ foreach ($settingsFile in $TerminalSettingsPath) {
 
     foreach ($note in $notes) { Write-Result $note[0] $note[1] note }
 
-    Save-TerminalSettings $settingsFile $settings $before
+    Save-TerminalSettings $settingsFile $settings $before $hasComments
 }
 
 # ---------------------------------------------------------------- PowerShell profiles
