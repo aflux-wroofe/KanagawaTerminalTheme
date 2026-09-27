@@ -100,7 +100,7 @@ $schemes = $schemeFiles | ForEach-Object {
 }
 $schemeNames = $schemes.name
 $defaultScheme = "$family $Variant"
-$terminalFonts = @()
+$terminalFonts = [ordered]@{}  # terminal name -> font face
 
 if (-not $TerminalSettingsPath) {
     Write-Section 'Windows Terminal'
@@ -163,7 +163,7 @@ foreach ($settingsFile in $TerminalSettingsPath) {
         }
         $settingsFont = $defaults.font.face ?? $defaults.fontFace ?? 'Cascadia Mono'  # WT's own default
     }
-    $terminalFonts += $settingsFont
+    if ($settingsFont) { $terminalFonts[$terminalNames[$settingsFile] ?? $settingsFile] = $settingsFont }
 
     foreach ($note in $notes) { Write-Result $note[0] $note[1] note }
 
@@ -271,14 +271,24 @@ $nerdFonts = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts', 'HKCU:\
 
 if (-not $FontFace) {
     Write-Section 'Font'
-    $terminalFont = $terminalFonts | Select-Object -First 1
     if (-not $nerdFonts) {
         Write-Result 'No Nerd Font' 'the prompt needs one: nerdfonts.com/font-downloads' note
-    } elseif ($terminalFont -and $terminalFont -match 'Nerd Font|\bNF[MP]?\b') {
-        Write-Result 'Terminal font' "$terminalFont, a Nerd Font" same
     } else {
-        Write-Result 'Terminal font' "$terminalFont isn't a Nerd Font" note
-        Write-Host "      re-run with -FontFace '$($nerdFonts[0])'  (installed: $($nerdFonts -join ', '))" -ForegroundColor DarkGray
+        # Name each terminal only when there's more than one to tell apart
+        $wrongFont = $false
+        foreach ($terminal in $terminalFonts.Keys) {
+            $font = $terminalFonts[$terminal]
+            $label = $terminalFonts.Count -gt 1 ? $terminal : 'Terminal font'
+            if ($font -match 'Nerd Font|\bNF[MP]?\b') {
+                Write-Result $label "$font, a Nerd Font" same
+            } else {
+                Write-Result $label "$font isn't a Nerd Font" note
+                $wrongFont = $true
+            }
+        }
+        if ($wrongFont) {
+            Write-Host "      re-run with -FontFace '$($nerdFonts[0])'  (installed: $($nerdFonts -join ', '))" -ForegroundColor DarkGray
+        }
     }
 }
 
