@@ -121,7 +121,6 @@ function global:prompt {
     $newError = $global:Error.Count -and -not [object]::ReferenceEquals($global:Error[0], $global:KanagawaPrompt.LastError)
 
     $kp = $global:KanagawaPrompt
-    $kp.LastError = $global:Error[0]
     $g = $kp.Glyph
     $ink = $kp.Ink
     $pad = ' ' * [math]::Max(0, $kp.IconWidth - 1)  # room for icons that overflow their cell
@@ -200,6 +199,7 @@ function global:prompt {
 
     $Host.UI.RawUI.WindowTitle = $leaf
     $global:LASTEXITCODE = $exitCode
+    $kp.LastError = $global:Error[0]  # after git, which adds to $Error in 5.1 even with 2>$null
     $out
 }
 
