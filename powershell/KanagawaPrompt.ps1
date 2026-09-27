@@ -5,7 +5,8 @@
 #
 # Git status after the branch name, as outlined Octicons with a count:
 #   [+] staged (green)   [.] modified (yellow)   [?] untracked (grey)
-#   [!] conflicts (red)  [up] / [down] commits ahead of / behind upstream (blue)
+#   [!] conflicts (red)  [=] stashes (aqua)
+#   [up] / [down] commits ahead of / behind upstream (blue)
 #
 # Colours come from the terminal's 16-colour palette, so the prompt follows
 # whichever Kanagawa or Kanso variant the terminal is using. Glyphs are built from
@@ -34,6 +35,7 @@ $global:KanagawaPrompt = @{
         Conflict  = [char]::ConvertFromUtf32(0xF421)  # nf-oct-alert
         Ahead     = [char]::ConvertFromUtf32(0xF431)  # nf-oct-arrow_up
         Behind    = [char]::ConvertFromUtf32(0xF433)  # nf-oct-arrow_down
+        Stash     = [char]::ConvertFromUtf32(0xF51E)  # nf-oct-stack
         Ellipsis = [string][char]0x2026               # …
         Top      = [string][char]0x256D + [char]0x2500  # ╭─
         Bottom   = [string][char]0x2570 + [char]0x2500  # ╰─
@@ -54,6 +56,7 @@ $global:KanagawaPrompt = @{
     }
 
     HasGit        = [bool](Get-Command git -CommandType Application -ErrorAction Ignore)
+    GitShowsStash = $null  # git 2.35+ can count stashes in git status; checked on first use
     IsAdmin       = $env:OS -eq 'Windows_NT' -and
                     ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
                         [Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -70,16 +73,22 @@ function global:Get-KanagawaGitSegment {
     $g = $kp.Glyph
     $ink = $kp.Ink
 
+    if ($null -eq $kp.GitShowsStash) {
+        $kp.GitShowsStash = (git version) -match '(\d+)\.(\d+)' -and [version]"$($Matches[1]).$($Matches[2])" -ge [version]'2.35'
+    }
+    $stashFlag = if ($kp.GitShowsStash) { '--show-stash' }
+
     # --no-optional-locks: don't refresh the index, which can clash with editors running git at the same time
-    $status = git --no-optional-locks status --porcelain=v2 --branch 2>$null
+    $status = git --no-optional-locks status --porcelain=v2 --branch $stashFlag 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $status) { return '' }
 
     $oid = $branch = $null
-    $ahead = $behind = $staged = $modified = $untracked = $conflicts = 0
+    $ahead = $behind = $staged = $modified = $untracked = $conflicts = $stashes = 0
     switch -Regex ($status) {
         '^# branch\.oid (\S+)'            { $oid = $Matches[1] }
         '^# branch\.head (.+)'            { $branch = $Matches[1] }
         '^# branch\.ab \+(\d+) -(\d+)'    { $ahead = [int]$Matches[1]; $behind = [int]$Matches[2] }
+        '^# stash (\d+)'                  { $stashes = [int]$Matches[1] }
         '^[12] (.)(.)'                    { if ($Matches[1] -ne '.') { $staged++ }; if ($Matches[2] -ne '.') { $modified++ } }
         '^u '                             { $conflicts++ }
         '^\? '                            { $untracked++ }
@@ -94,6 +103,7 @@ function global:Get-KanagawaGitSegment {
         ($staged, $ink.Green, $g.Staged),
         ($modified, $ink.Yellow, $g.Modified),
         ($untracked, $ink.Muted, $g.Untracked),
+        ($stashes, $ink.Aqua, $g.Stash),
         ($ahead, $ink.Wave, $g.Ahead),
         ($behind, $ink.Wave, $g.Behind)
     )

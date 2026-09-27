@@ -78,7 +78,7 @@ The theme uses the terminal's 16 ANSI colours, like the PowerShell prompt, so it
 ╰─❯
 ```
 
-Shows staged, modified, untracked and conflicted file counts, commits ahead/behind upstream, and how long slow commands took. Settings can be changed after the profile loads via `$KanagawaPrompt`, for example:
+Shows staged, modified, untracked and conflicted file counts, stashes, commits ahead/behind upstream, and how long slow commands took. Settings can be changed after the profile loads via `$KanagawaPrompt`, for example:
 
 ```powershell
 $KanagawaPrompt.ShowGit = $false        # hide git info

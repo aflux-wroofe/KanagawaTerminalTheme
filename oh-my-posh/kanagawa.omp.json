@@ -51,9 +51,10 @@
           "style": "plain",
           "foreground": "p:violet",
           "exclude_folders": ["^\\\\\\\\"],
-          "template": " <p:muted>on</> {{ .HEAD }}{{ if .Working.Unmerged }}  <p:red>  {{ .Working.Unmerged }}</>{{ end }}{{ $staged := add .Staging.Added .Staging.Modified .Staging.Deleted }}{{ if $staged }}  <p:green>  {{ $staged }}</>{{ end }}{{ $modified := add .Working.Modified .Working.Deleted }}{{ if $modified }}  <p:yellow>  {{ $modified }}</>{{ end }}{{ if .Working.Untracked }}  <p:muted>  {{ .Working.Untracked }}</>{{ end }}{{ if .Ahead }}  <p:wave>  {{ .Ahead }}</>{{ end }}{{ if .Behind }}  <p:wave>  {{ .Behind }}</>{{ end }}",
+          "template": " <p:muted>on</> {{ .HEAD }}{{ if .Working.Unmerged }}  <p:red>  {{ .Working.Unmerged }}</>{{ end }}{{ $staged := add .Staging.Added .Staging.Modified .Staging.Deleted }}{{ if $staged }}  <p:green>  {{ $staged }}</>{{ end }}{{ $modified := add .Working.Modified .Working.Deleted }}{{ if $modified }}  <p:yellow>  {{ $modified }}</>{{ end }}{{ if .Working.Untracked }}  <p:muted>  {{ .Working.Untracked }}</>{{ end }}{{ if .StashCount }}  <p:aqua>  {{ .StashCount }}</>{{ end }}{{ if .Ahead }}  <p:wave>  {{ .Ahead }}</>{{ end }}{{ if .Behind }}  <p:wave>  {{ .Behind }}</>{{ end }}",
           "options": {
-            "branch_icon": "  "
+            "branch_icon": "  ",
+            "fetch_stash_count": true
           }
         },
         {
