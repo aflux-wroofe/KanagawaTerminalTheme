@@ -242,6 +242,13 @@ if ($Uninstall) {
         Copy-Item $changedFiles $installDir -Force
         Write-Result $promptName "installed to $installDirShort"
     }
+
+    # Left over from an earlier -OhMyPosh install
+    $staleTheme = Join-Path $installDir 'kanagawa.omp.json'
+    if (-not $OhMyPosh -and (Test-Path $staleTheme) -and $PSCmdlet.ShouldProcess($staleTheme, 'Remove unused Oh My Posh theme')) {
+        Remove-Item $staleTheme
+        Write-Verbose "Removed $staleTheme"
+    }
 }
 
 $begin = '# >>> KanagawaTerminalTheme >>>'
