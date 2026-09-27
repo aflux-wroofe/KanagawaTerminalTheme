@@ -65,7 +65,7 @@ function Write-Result([string]$Label, [string]$Detail, [ValidateSet('ok', 'same'
         'note' { '!', 'Yellow' }
     }
     Write-Host "    $mark " -ForegroundColor $colour -NoNewline
-    Write-Host $Label.PadRight(22) -NoNewline -ForegroundColor ($State -eq 'same' ? 'DarkGray' : 'Gray')
+    Write-Host "$Label ".PadRight(24) -NoNewline -ForegroundColor ($State -eq 'same' ? 'DarkGray' : 'Gray')
     Write-Host $Detail -ForegroundColor DarkGray
 }
 
@@ -199,18 +199,20 @@ $installFiles = @(
     if ($OhMyPosh) { Join-Path $PSScriptRoot 'oh-my-posh' 'kanagawa.omp.json' }
 )
 
-Write-Section 'Prompt files'
+Write-Section 'Prompt'
 Write-Verbose "Install folder: $installDir"
+$promptName = $OhMyPosh ? 'Oh My Posh theme' : 'PowerShell prompt'
+$installDirShort = $installDir.Replace($HOME, '~')
 $changedFiles = @($installFiles | Where-Object {
     $dest = Join-Path $installDir (Split-Path $_ -Leaf)
     -not (Test-Path $dest) -or (Get-FileHash $_).Hash -ne (Get-FileHash $dest).Hash
 })
 if (-not $changedFiles) {
-    Write-Result 'Copied' "$installDir, already up to date" same
+    Write-Result $promptName "$installDirShort, already up to date" same
 } elseif ($PSCmdlet.ShouldProcess($installDir, 'Copy prompt files')) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
     Copy-Item $changedFiles $installDir -Force
-    Write-Result 'Copied' $installDir
+    Write-Result $promptName "installed to $installDirShort"
 }
 
 $begin = '# >>> KanagawaTerminalTheme >>>'

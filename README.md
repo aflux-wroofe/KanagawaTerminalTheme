@@ -1,4 +1,4 @@
-# Kanagawa Terminal Theme
+# Kanagawa & Kansō Terminal Themes
 
 [Kanagawa](https://github.com/rebelot/kanagawa.nvim) and [Kansō](https://github.com/webhooked/kanso.nvim) colour schemes for Windows Terminal, plus a matching two-line Nerd Font prompt: either as a PowerShell profile or as an [Oh My Posh](https://ohmyposh.dev/) theme for any shell.
 
