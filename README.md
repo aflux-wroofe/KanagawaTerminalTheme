@@ -43,10 +43,11 @@ Options:
 ./install.ps1 -Variant Ink                           # or a Kanso variant: Zen, Ink, Mist, Pearl
 ./install.ps1 -FontFace 'CaskaydiaCove Nerd Font'    # set the font for all profiles
 ./install.ps1 -SkipDefaultScheme                     # add the schemes without applying them
+./install.ps1 -OhMyPosh                              # use the Oh My Posh theme for the prompt
 ./install.ps1 -WhatIf                                # preview changes
 ```
 
-The installer is safe to re-run: schemes are replaced by name, the profile hook is rewritten rather than duplicated, and every changed file is backed up first. Your PowerShell profile dot-sources `powershell/profile.ps1` from the repo folder, so keep the repo where it is (or re-run the installer after moving it).
+The installer is safe to re-run: schemes are replaced by name, the profile hook is rewritten rather than duplicated, and every changed file is backed up first. The prompt files are copied to `%LOCALAPPDATA%\KanagawaTerminalTheme` and your PowerShell profile loads them from there, so the repo can be moved or deleted afterwards. Re-run the installer to pick up changes made in the repo.
 
 ### Manual install
 
@@ -57,7 +58,7 @@ The installer is safe to re-run: schemes are replaced by name, the profile hook 
 
 ### Oh My Posh
 
-If you already use [Oh My Posh](https://ohmyposh.dev/), or want the prompt outside PowerShell, point it at the theme instead of loading `profile.ps1`:
+In PowerShell, `./install.ps1 -OhMyPosh` sets this up for you. To do it by hand, or to use the prompt in another shell, point [Oh My Posh](https://ohmyposh.dev/) at the theme instead of loading `profile.ps1`:
 
 ```powershell
 oh-my-posh init pwsh --config 'C:\path\to\KanagawaTerminalTheme\oh-my-posh\kanagawa.omp.json' | Invoke-Expression

@@ -9,13 +9,16 @@
     marked block that gets rewritten, never duplicated. Every file it changes
     is backed up next to the original first.
 
-    Your PowerShell profiles dot-source powershell\profile.ps1 from this repo, so
-    keep the repo where it is (or run the installer again after moving it).
+    The prompt files are copied to %LOCALAPPDATA%\KanagawaTerminalTheme and your
+    PowerShell profiles load them from there, so the repo can be moved or deleted.
+    Run the installer again to pick up changes made in the repo.
 
 .EXAMPLE
     ./install.ps1                      # Dragon as the default scheme
 .EXAMPLE
     ./install.ps1 -Variant Wave -FontFace 'CaskaydiaCove Nerd Font'
+.EXAMPLE
+    ./install.ps1 -OhMyPosh            # use the Oh My Posh theme for the prompt
 .EXAMPLE
     ./install.ps1 -WhatIf              # show what would change
 .EXAMPLE
@@ -37,7 +40,10 @@ param(
     [string[]]$TerminalSettingsPath,
 
     # PowerShell profiles to hook into (PowerShell 7 and Windows PowerShell 5.1 if omitted)
-    [string[]]$ProfilePath
+    [string[]]$ProfilePath,
+
+    # Use the Oh My Posh theme for the prompt instead of the built-in PowerShell prompt
+    [switch]$OhMyPosh
 )
 
 $ErrorActionPreference = 'Stop'
@@ -185,14 +191,45 @@ if (-not $ProfilePath) {
     $ProfilePath = $profileNames.Keys | Sort-Object
 }
 
+# Copy the prompt files out of the repo so the profile doesn't depend on where it lives
+$installDir = Join-Path $env:LOCALAPPDATA 'KanagawaTerminalTheme'
+$installFiles = @(
+    Join-Path $PSScriptRoot 'powershell' 'profile.ps1'
+    Join-Path $PSScriptRoot 'powershell' 'KanagawaPrompt.ps1'
+    if ($OhMyPosh) { Join-Path $PSScriptRoot 'oh-my-posh' 'kanagawa.omp.json' }
+)
+
+Write-Section 'Prompt files'
+Write-Verbose "Install folder: $installDir"
+$changedFiles = @($installFiles | Where-Object {
+    $dest = Join-Path $installDir (Split-Path $_ -Leaf)
+    -not (Test-Path $dest) -or (Get-FileHash $_).Hash -ne (Get-FileHash $dest).Hash
+})
+if (-not $changedFiles) {
+    Write-Result 'Copied' "$installDir, already up to date" same
+} elseif ($PSCmdlet.ShouldProcess($installDir, 'Copy prompt files')) {
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+    Copy-Item $changedFiles $installDir -Force
+    Write-Result 'Copied' $installDir
+}
+
 $begin = '# >>> KanagawaTerminalTheme >>>'
 $end = '# <<< KanagawaTerminalTheme <<<'
-$kanagawaProfile = (Join-Path $PSScriptRoot 'powershell' 'profile.ps1').Replace("'", "''")
+$kanagawaProfile = (Join-Path $installDir 'profile.ps1').Replace("'", "''")
 $block = @(
     $begin
     "if (Test-Path '$kanagawaProfile') { . '$kanagawaProfile' }"
+    if ($OhMyPosh) {
+        # Replaces the prompt profile.ps1 defines; profile.ps1 still sets the ls colours
+        $theme = (Join-Path $installDir 'kanagawa.omp.json').Replace("'", "''")
+        "if (Get-Command oh-my-posh -ErrorAction Ignore) { oh-my-posh init pwsh --config '$theme' | Invoke-Expression }"
+    }
     $end
 ) -join [Environment]::NewLine
+
+if ($OhMyPosh -and -not (Get-Command oh-my-posh -ErrorAction Ignore)) {
+    Write-Result 'Oh My Posh' 'not found, install it: winget install JanDeDobbeleer.OhMyPosh' note
+}
 
 Write-Section 'PowerShell profiles'
 foreach ($target in $ProfilePath) {
