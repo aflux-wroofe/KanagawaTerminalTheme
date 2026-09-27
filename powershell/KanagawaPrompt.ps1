@@ -58,6 +58,7 @@ $global:KanagawaPrompt = @{
                     ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
                         [Security.Principal.WindowsBuiltInRole]::Administrator)
     LastHistoryId = (Get-History -Count 1).Id
+    LastError     = $global:Error[0]  # to tell cmdlet failures from native exit codes
     FirstPrompt   = $true
 }
 
@@ -106,8 +107,10 @@ function global:prompt {
     # Capture before anything else overwrites them
     $ok = $?
     $exitCode = $global:LASTEXITCODE
+    $newError = $global:Error.Count -and -not [object]::ReferenceEquals($global:Error[0], $global:KanagawaPrompt.LastError)
 
     $kp = $global:KanagawaPrompt
+    $kp.LastError = $global:Error[0]
     $g = $kp.Glyph
     $ink = $kp.Ink
     $pad = ' ' * [math]::Max(0, $kp.IconWidth - 1)  # room for icons that overflow their cell
@@ -173,7 +176,8 @@ function global:prompt {
             $out += "  $($ink.Muted)took$($ink.Reset) $($ink.Yellow)$($g.Timer)$pad $text$($ink.Reset)"
         }
         if (-not $ok) {
-            $code = if ($exitCode) { " $exitCode" } else { '' }
+            # $LASTEXITCODE only changes when a native program runs, so a new error record means a cmdlet failed
+            $code = if ($exitCode -and -not $newError) { " $exitCode" } else { '' }
             $out += "  $($ink.Red)$($g.Cross)$code$($ink.Reset)"
         }
     }
